@@ -1,10 +1,11 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
-const port = process.env.PORT || 5555;
+const port = process.env.PORT || 5000;
 const jwt = require("jsonwebtoken");
+// const stripe = require('stripe')(process.env.SECRET_KEY);
 app.use(cors());
 app.use(express.json());
 
@@ -33,7 +34,8 @@ async function run() {
     const serviceCollection = client.db("doctors-portal").collection("services");
     const bookingCollection = client.db("doctors-portal").collection("booking");
     const userCollection = client.db("doctors-portal").collection("user");
-    const doctorCollection = client.db('doctors_portal').collection('doctors');
+    const doctorCollection = client.db('doctors-portal').collection('doctors');
+    const diseaseCollection = client.db('doctors-portal').collection('diseases');
 
     app.get("/service", async (req, res) => {
       const query = {};
@@ -53,15 +55,22 @@ async function run() {
       const isAdmin = user.role === 'admin';
       res.send({admin: isAdmin})
     })
+    app.get('/make-doctor/:email', async(req, res) =>{
+      const email = req.params.email;
+      const user = await userCollection.findOne({email: email});
+      const isDoctor = user?.role === 'doctor';
+      res.send({doctor: isDoctor})
+    })
+    
 
-    app.put('/user/admin/:email', verifyJWT, async (req, res) => {
+    app.put('/user/make-doctor/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
       const requester = req.decoded.email;
       const requesterAccount = await userCollection.findOne({ email: requester });
       if (requesterAccount.role === 'admin') {
         const filter = { email: email };
         const updateDoc = {
-          $set: { role: 'admin' },
+          $set: { role: 'doctor' },
         };
         const result = await userCollection.updateOne(filter, updateDoc);
         res.send(result);
@@ -84,6 +93,13 @@ async function run() {
       const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "1h" });
       res.send({ result, token });
     });
+    app.delete('/user/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      const filter = { email: email };
+      const result = await userCollection.deleteOne(filter);
+      res.send(result);
+    });
+    
 
     app.get("/available", async (req, res) => {
       const date = req.query.date || "May 11, 2022";
@@ -119,7 +135,7 @@ async function run() {
 
     app.post("/booking", async (req, res) => {
       const booking = req.body;
-      const query = { treatment: booking.treatment, date: booking.date, patient: booking.patient };
+      const query = { treatment: booking.treatment, date: booking.date, patient: booking.patient , fee: booking.fee};
       const exists = await bookingCollection.findOne(query);
       if (exists) {
         return res.send({ success: false, booking: exists });
@@ -127,7 +143,7 @@ async function run() {
       const result = await bookingCollection.insertOne(booking);
       return res.send({ success: true, result });
     });
-    app.get('/doctor', verifyJWT, async(req, res) =>{
+    app.get('/doctor', async(req, res) =>{
       const doctors = await doctorCollection.find().toArray();
       res.send(doctors);
     })
@@ -143,6 +159,40 @@ async function run() {
       const result = await doctorCollection.deleteOne(filter);
       res.send(result);
     })
+
+    //disease
+    app.get('/diseases', async(req, res) =>{
+      const diseases = await diseaseCollection.find().toArray();
+      res.send(diseases);
+    })
+
+    app.post('/diseases', verifyJWT, async (req, res) => {
+      const diseases = req.body;
+      const result = await diseaseCollection.insertOne(diseases);
+      res.send(result);
+    });
+    app.delete('/diseases/:id', verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const filter = {_id: ObjectId(id)};
+      const result = await diseaseCollection.deleteOne(filter);
+      res.send(result);
+    })
+
+    //payment
+
+    // app.post('/create-payment-intent', verifyJWT, async(req, res) =>{
+    //   const service = req.body;
+    //   const price = service.price;
+    //   const amount = price*100;
+    //   const paymentIntent = await stripe.paymentIntents.create({
+    //     amount : amount,
+    //     currency: 'usd',
+    //     payment_method_types:['card']
+    //   });
+    //   res.send({clientSecret: paymentIntent.client_secret})
+    // });
+
+
   } finally {
   }
 }
