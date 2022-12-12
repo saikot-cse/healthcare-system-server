@@ -35,6 +35,7 @@ async function run() {
     const bookingCollection = client.db("doctors-portal").collection("booking");
     const userCollection = client.db("doctors-portal").collection("user");
     const doctorCollection = client.db('doctors-portal').collection('doctors');
+    const reviewsCollection = client.db('doctors-portal').collection('reviews');
     const diseaseCollection = client.db('doctors-portal').collection('diseases');
 
     app.get("/service", async (req, res) => {
@@ -52,6 +53,16 @@ async function run() {
       const email = req.params.email;
       const user = await userCollection.findOne({email: email});
       res.send(user);
+    });
+
+    app.get("/reviews", async (req, res) => {
+      const reviews = await reviewsCollection.find({}).toArray();
+      res.send(reviews);
+    });
+    app.post("/reviews", verifyJWT, async (req, res) => {
+      const reviews = req.body;
+      const result = await reviewsCollection.insertOne(reviews);
+      res.send(result);
     });
 
     app.get('/admin/:email', async(req, res) =>{
