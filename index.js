@@ -8,8 +8,8 @@ const jwt = require("jsonwebtoken");
 // const stripe = require('stripe')(process.env.SECRET_KEY);
 app.use(cors());
 app.use(express.json());
-
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.lfwra.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
+const uri = "mongodb+srv://my-doc:jYafnJWdHGQc7EkA@cluster0.kzxykcs.mongodb.net/?retryWrites=true&w=majority";
+// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.lfwra.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
 function verifyJWT(req, res, next) {
@@ -34,9 +34,9 @@ async function run() {
     const serviceCollection = client.db("doctors-portal").collection("services");
     const bookingCollection = client.db("doctors-portal").collection("booking");
     const userCollection = client.db("doctors-portal").collection("user");
-    const doctorCollection = client.db('doctors-portal').collection('doctors');
-    const reviewsCollection = client.db('doctors-portal').collection('reviews');
-    const diseaseCollection = client.db('doctors-portal').collection('diseases');
+    const doctorCollection = client.db("doctors-portal").collection("doctors");
+    const reviewsCollection = client.db("doctors-portal").collection("reviews");
+    const diseaseCollection = client.db("doctors-portal").collection("diseases");
 
     app.get("/service", async (req, res) => {
       const query = {};
@@ -45,13 +45,13 @@ async function run() {
       res.send(services);
     });
 
-    app.get('/user', verifyJWT, async (req, res) => {
+    app.get("/user", verifyJWT, async (req, res) => {
       const users = await userCollection.find().toArray();
       res.send(users);
     });
-    app.get('/user/:email', verifyJWT, async (req, res) => {
+    app.get("/user/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
-      const user = await userCollection.findOne({email: email});
+      const user = await userCollection.findOne({ email: email });
       res.send(user);
     });
 
@@ -65,37 +65,34 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/admin/:email', async(req, res) =>{
+    app.get("/admin/:email", async (req, res) => {
       const email = req.params.email;
-      const user = await userCollection.findOne({email: email});
-      const isAdmin = user.role === 'admin';
-      res.send({admin: isAdmin})
-    })
-    app.get('/make-doctor/:email', async(req, res) =>{
+      const user = await userCollection.findOne({ email: email });
+      const isAdmin = user.role === "admin";
+      res.send({ admin: isAdmin });
+    });
+    app.get("/make-doctor/:email", async (req, res) => {
       const email = req.params.email;
-      const user = await userCollection.findOne({email: email});
-      const isDoctor = user?.role === 'doctor';
-      res.send({doctor: isDoctor})
-    })
-    
+      const user = await userCollection.findOne({ email: email });
+      const isDoctor = user?.role === "doctor";
+      res.send({ doctor: isDoctor });
+    });
 
-    app.put('/user/make-doctor/:email', verifyJWT, async (req, res) => {
+    app.put("/user/make-doctor/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
       const requester = req.decoded.email;
       const requesterAccount = await userCollection.findOne({ email: requester });
-      if (requesterAccount.role === 'admin') {
+      if (requesterAccount.role === "admin") {
         const filter = { email: email };
         const updateDoc = {
-          $set: { role: 'doctor' },
+          $set: { role: "doctor" },
         };
         const result = await userCollection.updateOne(filter, updateDoc);
         res.send(result);
+      } else {
+        res.status(403).send({ message: "forbidden" });
       }
-      else{
-        res.status(403).send({message: 'forbidden'});
-      }
-
-    })
+    });
 
     app.put("/user/:email", async (req, res) => {
       const email = req.params.email;
@@ -109,13 +106,12 @@ async function run() {
       const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "1h" });
       res.send({ result, token });
     });
-    app.delete('/user/:email', verifyJWT, async (req, res) => {
+    app.delete("/user/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
       const filter = { email: email };
       const result = await userCollection.deleteOne(filter);
       res.send(result);
     });
-    
 
     app.get("/available", async (req, res) => {
       const date = req.query.date || "May 11, 2022";
@@ -143,15 +139,14 @@ async function run() {
         const query = { patient: patient };
         const bookings = await bookingCollection.find(query).toArray();
         return res.send(bookings);
+      } else {
+        return res.status(403).send({ message: "forbidden access" });
       }
-      else {
-        return res.status(403).send({ message: 'forbidden access' });
-      }
-    })
+    });
 
     app.post("/booking", async (req, res) => {
       const booking = req.body;
-      const query = { treatment: booking.treatment, date: booking.date, patient: booking.patient , fee: booking.fee};
+      const query = { treatment: booking.treatment, date: booking.date, patient: booking.patient, fee: booking.fee };
       const exists = await bookingCollection.findOne(query);
       if (exists) {
         return res.send({ success: false, booking: exists });
@@ -159,40 +154,40 @@ async function run() {
       const result = await bookingCollection.insertOne(booking);
       return res.send({ success: true, result });
     });
-    app.get('/doctor', async(req, res) =>{
+    app.get("/doctor", async (req, res) => {
       const doctors = await doctorCollection.find().toArray();
       res.send(doctors);
-    })
+    });
 
-    app.post('/doctor', verifyJWT, async (req, res) => {
+    app.post("/doctor", verifyJWT, async (req, res) => {
       const doctor = req.body;
       const result = await doctorCollection.insertOne(doctor);
       res.send(result);
     });
-    app.delete('/doctor/:email', verifyJWT, async (req, res) => {
+    app.delete("/doctor/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
-      const filter = {email: email};
+      const filter = { email: email };
       const result = await doctorCollection.deleteOne(filter);
       res.send(result);
-    })
+    });
 
     //disease
-    app.get('/diseases', async(req, res) =>{
+    app.get("/diseases", async (req, res) => {
       const diseases = await diseaseCollection.find().toArray();
       res.send(diseases);
-    })
+    });
 
-    app.post('/diseases', verifyJWT, async (req, res) => {
+    app.post("/diseases", verifyJWT, async (req, res) => {
       const diseases = req.body;
       const result = await diseaseCollection.insertOne(diseases);
       res.send(result);
     });
-    app.delete('/diseases/:id', verifyJWT, async (req, res) => {
+    app.delete("/diseases/:id", verifyJWT, async (req, res) => {
       const id = req.params.id;
-      const filter = {_id: ObjectId(id)};
+      const filter = { _id: ObjectId(id) };
       const result = await diseaseCollection.deleteOne(filter);
       res.send(result);
-    })
+    });
 
     //payment
 
@@ -207,8 +202,6 @@ async function run() {
     //   });
     //   res.send({clientSecret: paymentIntent.client_secret})
     // });
-
-
   } finally {
   }
 }
